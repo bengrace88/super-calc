@@ -1,29 +1,35 @@
 import streamlit as st
 
 # --- UI SETUP ---
-st.set_page_config(page_title="Super Input", page_icon="📝", layout="wide")
+st.set_page_config(page_title="Super Dashboard", page_icon="💰", layout="centered")
 
 st.title("📊 My Super Dashboard")
-st.write("Enter the latest figures to see your 25/75 split performance.")
 
-# --- 1. THE DATA PROMPTS (The "Inputs") ---
-# We use columns to keep the input fields neat on your phone
+# --- 1. THE QUICK LINK SECTION ---
+st.info("Step 1: Get the latest 'FYTD' returns from the table below.")
+# This creates a prominent button that opens the target URL
+st.link_button("🔗 Open AustralianSuper Performance Table", "https://www.australiansuper.com/why-choose-us/investment-performance?superType=Super&display=table")
+
+st.divider()
+
+# --- 2. THE DATA PROMPTS ---
+st.subheader("Step 2: Enter Today's Figures")
 col1, col2 = st.columns(2)
 
 with col1:
     total_balance = st.number_input("Current Super Balance ($)", min_value=0.0, value=150000.0, step=1000.0)
     
 with col2:
-    # We ask for the "Return to Date" (FYTD) specifically as you requested
-    aus_return_input = st.number_input("AU Shares Return to Date (%)", value=7.75, step=0.01)
-    int_return_input = st.number_input("INT Shares Return to Date (%)", value=1.35, step=0.01)
+    # Pre-filled with current March 2026 estimates
+    aus_return_input = st.number_input("AU Shares FYTD (%)", value=7.75, step=0.01)
+    int_return_input = st.number_input("INT Shares FYTD (%)", value=1.35, step=0.01)
 
-# --- 2. THE LOGIC (The "Engine") ---
-# Your fixed split
+# --- 3. THE LOGIC ---
+# Your 25/75 Split
 aus_weight = 0.25
 int_weight = 0.75
 
-# Weighted Calculation
+# Calculations
 combined_return_pct = (aus_return_input * aus_weight) + (int_return_input * int_weight)
 total_dollar_gain = total_balance * (combined_return_pct / 100)
 
@@ -31,27 +37,25 @@ total_dollar_gain = total_balance * (combined_return_pct / 100)
 aus_value = total_balance * aus_weight
 int_value = total_balance * int_weight
 
-# --- 3. THE DASHBOARD (The "Output") ---
+# --- 4. THE RESULTS ---
 st.divider()
 
-# Big "Hero" Metrics
+# Metrics
 m1, m2 = st.columns(2)
-m1.metric("Total Combined Return", f"{combined_return_pct:.2f}%")
-m2.metric("Estimated Profit/Loss", f"${total_dollar_gain:,.2f}")
+m1.metric("Combined FYTD Return", f"{combined_return_pct:.2f}%")
+m2.metric("Estimated FYTD Profit", f"${total_dollar_gain:,.2f}")
 
-# Progress Bar toward a milestone (Engineers love a progress bar)
+# Progress Bar
 target = 500000.0
 progress = min(total_balance / target, 1.0)
-st.write(f"### Progress to ${target:,.0f} Milestone")
+st.write(f"### Progress to ${target:,.0f} Goal")
 st.progress(progress)
-st.caption(f"Currently at {progress*100:.1f}% of your goal.")
+st.caption(f"You are {progress*100:.1f}% of the way to your milestone.")
 
-# Breakdown Table
-st.subheader("Current Asset Allocation")
-st.table({
-    "Asset Class": ["Australian Shares (25%)", "International Shares (75%)", "TOTAL"],
-    "Value ($)": [f"${aus_value:,.2f}", f"${int_val:,.2f}", f"${total_balance:,.2f}"],
-    "Return Contribution": [f"{(aus_return_input * aus_weight):.2f}%", f"{(int_return_input * int_weight):.2f}%", f"{combined_return_pct:.2f}%"]
-})
-
-st.info("💡 Tip: Just check your AustralianSuper app once a month, punch the new % numbers in here, and see your instant weighted growth.")
+# Detail Table
+with st.expander("View Allocation Breakdown"):
+    st.table({
+        "Asset Class": ["Australian Shares (25%)", "International Shares (75%)"],
+        "Value ($)": [f"${aus_value:,.2f}", f"${int_value:,.2f}"],
+        "Profit Contrib. ($)": [f"${(aus_value * aus_return_input / 100):,.2f}", f"${(int_value * int_return_input / 100):,.2f}"]
+    })
