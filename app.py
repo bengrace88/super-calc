@@ -1,70 +1,68 @@
 import streamlit as st
 
-# --- 1. DATA (March 2026 Actuals) ---
-# I've updated these to match the latest AustralianSuper March 2026 table
+# --- 1. DATA (Current as of March 2026) ---
+# Manual update point: Change these numbers once a month
 data = {
-    'aus': {
-        'fytd': 7.75,       # FYTD to 12 Mar 2026
-        'last_fy': 13.24,   # Full 2024-25 FY
-        'one_year': 13.27   # Rolling 12 months
-    },
-    'int': {
-        'fytd': 1.35,       # FYTD to 12 Mar 2026
-        'last_fy': 14.06,   # Full 2024-25 FY
-        'one_year': 16.21   # Rolling 12 months
-    }
+    'aus': {'fytd': 7.75, 'last_fy': 13.24, 'one_year': 13.27},
+    'int': {'fytd': 1.35, 'last_fy': 14.06, 'one_year': 16.21}
 }
 
 # --- 2. UI SETUP ---
-st.set_page_config(page_title="Super Tracker", page_icon="📈", layout="centered")
+st.set_page_config(page_title="Super Scorecard", page_icon="💰")
 
-st.title("🚀 My Super Performance")
-st.caption("Data as of March 2026")
+st.title("📊 Super Return Scorecard")
+st.caption("Reporting Period: March 2026")
 
-# Sidebar for Inputs
-st.sidebar.header("Portfolio Settings")
+# Sidebar for Balance
+st.sidebar.header("Account Settings")
 total_balance = st.sidebar.number_input("Current Balance ($)", value=150000, step=5000)
-aus_pct = st.sidebar.slider("Australian Shares %", 0, 100, 50)
-int_pct = 100 - aus_pct
-st.sidebar.info(f"International Split: {int_pct}%")
 
-# Timeframe Selector
-timeframe = st.radio(
-    "Select Performance Period:",
-    ["Financial Year to Date (FYTD)", "Last Financial Year", "Rolling 1 Year"],
-    horizontal=True
-)
+# Fixed Split as per your request
+aus_pct = 25
+int_pct = 75
 
-# Map selection to data keys
-key_map = {
-    "Financial Year to Date (FYTD)": "fytd", 
-    "Last Financial Year": "last_fy", 
-    "Rolling 1 Year": "one_year"
-}
-active_key = key_map[timeframe]
+st.sidebar.divider()
+st.sidebar.write(f"**Current Split:**")
+st.sidebar.write(f"🇦🇺 Australian: {aus_pct}%")
+st.sidebar.write(f"🌎 International: {int_pct}%")
 
-# --- 3. CALCULATIONS ---
-aus_rate = data['aus'][active_key]
-int_rate = data['int'][active_key]
+# --- 3. CALCULATION FUNCTION ---
+def calc_returns(timeframe_key):
+    aus_r = data['aus'][timeframe_key]
+    int_r = data['int'][timeframe_key]
+    
+    # Weighted Return %
+    weighted_r = (aus_r * (aus_pct/100)) + (int_r * (int_pct/100))
+    # Dollar Growth
+    dollar_growth = total_balance * (weighted_r / 100)
+    
+    return weighted_r, dollar_growth
 
-weighted_return_pct = (aus_rate * (aus_pct/100)) + (int_rate * (int_pct/100))
-dollar_growth = total_balance * (weighted_return_pct / 100)
+# --- 4. DISPLAY RESULTS ---
 
-# --- 4. DISPLAY ---
+# Top Row: The Big Three
+col1, col2, col3 = st.columns(3)
+
+# FYTD
+r_fytd, d_fytd = calc_returns('fytd')
+col1.metric("FYTD", f"${d_fytd:,.0f}", f"{r_fytd:.2f}%")
+
+# Last FY
+r_lfy, d_lfy = calc_returns('last_fy')
+col2.metric("Last FY", f"${d_lfy:,.0f}", f"{r_lfy:.2f}%")
+
+# Rolling 1 Year
+r_1y, d_1y = calc_returns('one_year')
+col3.metric("1 Year", f"${d_1y:,.0f}", f"{r_1y:.2f}%")
+
 st.divider()
-st.metric(
-    label=f"Estimated {timeframe} Growth", 
-    value=f"${dollar_growth:,.2f}", 
-    delta=f"{weighted_return_pct:.2f}%"
-)
 
-# Show Breakdown Table
-st.subheader("Historical Context (%)")
-comparison_data = {
-    "Period": ["FYTD", "Last FY", "1 Year"],
-    "AU Shares": [f"{data['aus']['fytd']}%", f"{data['aus']['last_fy']}%", f"{data['aus']['one_year']}%"],
-    "INT Shares": [f"{data['int']['fytd']}%", f"{data['int']['last_fy']}%", f"{data['int']['one_year']}%"]
-}
-st.table(comparison_data)
+# Breakdown Detail
+st.subheader("Portfolio Value Breakdown")
+aus_val = total_balance * (aus_pct / 100)
+int_val = total_balance * (int_pct / 100)
 
-st.warning("Note: Site scraping is currently disabled to prevent IP blocking. Rates are updated manually for March 2026.")
+st.write(f"**Australian Component ({aus_pct}%):** ${aus_val:,.2f}")
+st.write(f"**International Component ({int_pct}%):** ${int_val:,.2f}")
+
+st.info("To update these rates in the future, just edit the 'data' dictionary at the top of your app.py file in GitHub.")
