@@ -1,81 +1,70 @@
 import streamlit as st
-import requests
-from bs4 import BeautifulSoup
 
-def get_super_data():
-    url = "https://www.australiansuper.com/why-choose-us/investment-performance?superType=Super&display=table"
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        data = {}
-        rows = soup.find_all('tr')
-        for row in rows:
-            cells = row.find_all('td')
-            if len(cells) > 5:
-                name = cells[0].text.strip()
-                # Mapping columns based on the AustralianSuper table structure
-                # Col 1: FYTD | Col 2: Last FY | Col 3: 1 Year
-                if "Australian Shares" in name:
-                    data['aus'] = {
-                        'fytd': float(cells[1].text.replace('%', '').strip()),
-                        'last_fy': float(cells[2].text.replace('%', '').strip()),
-                        'one_year': float(cells[3].text.replace('%', '').strip())
-                    }
-                if "International Shares" in name:
-                    data['int'] = {
-                        'fytd': float(cells[1].text.replace('%', '').strip()),
-                        'last_fy': float(cells[2].text.replace('%', '').strip()),
-                        'one_year': float(cells[3].text.replace('%', '').strip())
-                    }
-        return data
-    except:
-        return None
+# --- 1. DATA (March 2026 Actuals) ---
+# I've updated these to match the latest AustralianSuper March 2026 table
+data = {
+    'aus': {
+        'fytd': 7.75,       # FYTD to 12 Mar 2026
+        'last_fy': 13.24,   # Full 2024-25 FY
+        'one_year': 13.27   # Rolling 12 months
+    },
+    'int': {
+        'fytd': 1.35,       # FYTD to 12 Mar 2026
+        'last_fy': 14.06,   # Full 2024-25 FY
+        'one_year': 16.21   # Rolling 12 months
+    }
+}
 
-# --- UI Setup ---
-st.set_page_config(page_title="Super Tracker", page_icon="📈")
-st.title("🚀 Super Performance Dashboard")
+# --- 2. UI SETUP ---
+st.set_page_config(page_title="Super Tracker", page_icon="📈", layout="centered")
 
-perf = get_super_data()
+st.title("🚀 My Super Performance")
+st.caption("Data as of March 2026")
 
-if perf:
-    # 1. Inputs
-    st.sidebar.header("Settings")
-    total_balance = st.sidebar.number_input("Current Balance ($)", value=150000, step=5000)
-    aus_pct = st.sidebar.slider("Aus Shares Split %", 0, 100, 50)
-    int_pct = 100 - aus_pct
+# Sidebar for Inputs
+st.sidebar.header("Portfolio Settings")
+total_balance = st.sidebar.number_input("Current Balance ($)", value=150000, step=5000)
+aus_pct = st.sidebar.slider("Australian Shares %", 0, 100, 50)
+int_pct = 100 - aus_pct
+st.sidebar.info(f"International Split: {int_pct}%")
 
-    # 2. Timeframe Selector
-    timeframe = st.radio(
-        "Select Performance Period for Calculation:",
-        ["Financial Year to Date (FYTD)", "Last Financial Year", "Rolling 1 Year"],
-        horizontal=True
-    )
+# Timeframe Selector
+timeframe = st.radio(
+    "Select Performance Period:",
+    ["Financial Year to Date (FYTD)", "Last Financial Year", "Rolling 1 Year"],
+    horizontal=True
+)
 
-    # Map selection to data keys
-    key_map = {"Financial Year to Date (FYTD)": "fytd", "Last Financial Year": "last_fy", "Rolling 1 Year": "one_year"}
-    active_key = key_map[timeframe]
+# Map selection to data keys
+key_map = {
+    "Financial Year to Date (FYTD)": "fytd", 
+    "Last Financial Year": "last_fy", 
+    "Rolling 1 Year": "one_year"
+}
+active_key = key_map[timeframe]
 
-    # 3. Calculation
-    aus_r = perf['aus'][active_key]
-    int_r = perf['int'][active_key]
-    
-    weighted_r = (aus_r * (aus_pct/100)) + (int_r * (int_pct/100))
-    profit = total_balance * (weighted_r / 100)
+# --- 3. CALCULATIONS ---
+aus_rate = data['aus'][active_key]
+int_rate = data['int'][active_key]
 
-    # 4. Results Display
-    st.divider()
-    st.metric(label=f"Estimated {timeframe} Return", value=f"${profit:,.2f}", delta=f"{weighted_r:.2f}%")
+weighted_return_pct = (aus_rate * (aus_pct/100)) + (int_rate * (int_pct/100))
+dollar_growth = total_balance * (weighted_return_pct / 100)
 
-    # 5. Comparison Table
-    st.subheader("Market Comparison (%)")
-    st.table({
-        "Metric": ["FYTD", "Last FY", "Rolling 1 Year"],
-        "Australian Shares": [f"{perf['aus']['fytd']}%", f"{perf['aus']['last_fy']}%", f"{perf['aus']['one_year']}%"],
-        "International Shares": [f"{perf['int']['fytd']}%", f"{perf['int']['last_fy']}%", f"{perf['int']['one_year']}%"]
-    })
+# --- 4. DISPLAY ---
+st.divider()
+st.metric(
+    label=f"Estimated {timeframe} Growth", 
+    value=f"${dollar_growth:,.2f}", 
+    delta=f"{weighted_return_pct:.2f}%"
+)
 
-    st.success("Live data synced from AustralianSuper.")
-else:
-    st.error("Site is being shy. Using fallback display.")
-    
+# Show Breakdown Table
+st.subheader("Historical Context (%)")
+comparison_data = {
+    "Period": ["FYTD", "Last FY", "1 Year"],
+    "AU Shares": [f"{data['aus']['fytd']}%", f"{data['aus']['last_fy']}%", f"{data['aus']['one_year']}%"],
+    "INT Shares": [f"{data['int']['fytd']}%", f"{data['int']['last_fy']}%", f"{data['int']['one_year']}%"]
+}
+st.table(comparison_data)
+
+st.warning("Note: Site scraping is currently disabled to prevent IP blocking. Rates are updated manually for March 2026.")
