@@ -47,5 +47,5 @@ if perf:
     col1.caption(f"Aus Rate: {perf['aus']}%")
     col2.caption(f"Int Rate: {perf['int']}%")
 else:
-    st.error("Could not fetch latest rates. Check back short
-    ly!")
+    st.error("Could not fetch latest rates. Check back shortly!")
+    
