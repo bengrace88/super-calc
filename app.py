@@ -12,55 +12,70 @@ def get_super_data():
         rows = soup.find_all('tr')
         for row in rows:
             cells = row.find_all('td')
-            if len(cells) > 3:
+            if len(cells) > 5:
                 name = cells[0].text.strip()
-                # Scrape 1-Year Performance (Column 4)
+                # Mapping columns based on the AustralianSuper table structure
+                # Col 1: FYTD | Col 2: Last FY | Col 3: 1 Year
                 if "Australian Shares" in name:
-                    data['aus_rate'] = float(cells[3].text.replace('%', '').strip())
+                    data['aus'] = {
+                        'fytd': float(cells[1].text.replace('%', '').strip()),
+                        'last_fy': float(cells[2].text.replace('%', '').strip()),
+                        'one_year': float(cells[3].text.replace('%', '').strip())
+                    }
                 if "International Shares" in name:
-                    data['int_rate'] = float(cells[3].text.replace('%', '').strip())
+                    data['int'] = {
+                        'fytd': float(cells[1].text.replace('%', '').strip()),
+                        'last_fy': float(cells[2].text.replace('%', '').strip()),
+                        'one_year': float(cells[3].text.replace('%', '').strip())
+                    }
         return data
     except:
-        # Fallback rates if scraping fails
-        return {'aus_rate': 13.24, 'int_rate': 14.06, 'is_fallback': True}
+        return None
 
 # --- UI Setup ---
-st.set_page_config(page_title="Super Calc", page_icon="💰")
-st.title("📊 My Super Tracker")
+st.set_page_config(page_title="Super Tracker", page_icon="📈")
+st.title("🚀 Super Performance Dashboard")
 
 perf = get_super_data()
 
-# 1. Input Section
-st.subheader("Your Portfolio Details")
-total_balance = st.number_input("Total Super Balance ($)", min_value=0, value=100000, step=1000)
+if perf:
+    # 1. Inputs
+    st.sidebar.header("Settings")
+    total_balance = st.sidebar.number_input("Current Balance ($)", value=150000, step=5000)
+    aus_pct = st.sidebar.slider("Aus Shares Split %", 0, 100, 50)
+    int_pct = 100 - aus_pct
 
-col_a, col_b = st.columns(2)
-with col_a:
-    aus_split = st.slider("Aus Shares %", 0, 100, 50)
-with col_b:
-    int_split = 100 - aus_split
-    st.write(f"\n\n**Int Shares:** {int_split}%")
+    # 2. Timeframe Selector
+    timeframe = st.radio(
+        "Select Performance Period for Calculation:",
+        ["Financial Year to Date (FYTD)", "Last Financial Year", "Rolling 1 Year"],
+        horizontal=True
+    )
 
-# 2. Calculation Logic
-aus_dollars = total_balance * (aus_split / 100)
-int_dollars = total_balance * (int_split / 100)
+    # Map selection to data keys
+    key_map = {"Financial Year to Date (FYTD)": "fytd", "Last Financial Year": "last_fy", "Rolling 1 Year": "one_year"}
+    active_key = key_map[timeframe]
 
-aus_profit = aus_dollars * (perf['aus_rate'] / 100)
-int_profit = int_dollars * (perf['int_rate'] / 100)
+    # 3. Calculation
+    aus_r = perf['aus'][active_key]
+    int_r = perf['int'][active_key]
+    
+    weighted_r = (aus_r * (aus_pct/100)) + (int_r * (int_pct/100))
+    profit = total_balance * (weighted_r / 100)
 
-total_profit = aus_profit + int_profit
-weighted_return = (total_profit / total_balance) * 100 if total_balance > 0 else 0
+    # 4. Results Display
+    st.divider()
+    st.metric(label=f"Estimated {timeframe} Return", value=f"${profit:,.2f}", delta=f"{weighted_r:.2f}%")
 
-# 3. Results Display
-st.divider()
-st.metric(label="Approx. 1-Year Growth", value=f"${total_profit:,.2f}", delta=f"{weighted_return:.2f}%")
+    # 5. Comparison Table
+    st.subheader("Market Comparison (%)")
+    st.table({
+        "Metric": ["FYTD", "Last FY", "Rolling 1 Year"],
+        "Australian Shares": [f"{perf['aus']['fytd']}%", f"{perf['aus']['last_fy']}%", f"{perf['aus']['one_year']}%"],
+        "International Shares": [f"{perf['int']['fytd']}%", f"{perf['int']['last_fy']}%", f"{perf['int']['one_year']}%"]
+    })
 
-# Break down the holdings
-st.write("### Portfolio Breakdown")
-st.write(f"* **Australian Holdings:** ${aus_dollars:,.0f} (@ {perf['aus_rate']}%)")
-st.write(f"* **International Holdings:** ${int_dollars:,.0f} (@ {perf['int_rate']}%)")
-
-if perf.get('is_fallback'):
-    st.warning("Using last known market rates (Live site blocked).")
+    st.success("Live data synced from AustralianSuper.")
 else:
-    st.success("Live rates synced.")
+    st.error("Site is being shy. Using fallback display.")
+    
