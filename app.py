@@ -1,68 +1,57 @@
 import streamlit as st
 
-# --- 1. DATA (Current as of March 2026) ---
-# Manual update point: Change these numbers once a month
-data = {
-    'aus': {'fytd': 7.75, 'last_fy': 13.24, 'one_year': 13.27},
-    'int': {'fytd': 1.35, 'last_fy': 14.06, 'one_year': 16.21}
-}
+# --- UI SETUP ---
+st.set_page_config(page_title="Super Input", page_icon="📝", layout="wide")
 
-# --- 2. UI SETUP ---
-st.set_page_config(page_title="Super Scorecard", page_icon="💰")
+st.title("📊 My Super Dashboard")
+st.write("Enter the latest figures to see your 25/75 split performance.")
 
-st.title("📊 Super Return Scorecard")
-st.caption("Reporting Period: March 2026")
+# --- 1. THE DATA PROMPTS (The "Inputs") ---
+# We use columns to keep the input fields neat on your phone
+col1, col2 = st.columns(2)
 
-# Sidebar for Balance
-st.sidebar.header("Account Settings")
-total_balance = st.sidebar.number_input("Current Balance ($)", value=150000, step=5000)
-
-# Fixed Split as per your request
-aus_pct = 25
-int_pct = 75
-
-st.sidebar.divider()
-st.sidebar.write(f"**Current Split:**")
-st.sidebar.write(f"🇦🇺 Australian: {aus_pct}%")
-st.sidebar.write(f"🌎 International: {int_pct}%")
-
-# --- 3. CALCULATION FUNCTION ---
-def calc_returns(timeframe_key):
-    aus_r = data['aus'][timeframe_key]
-    int_r = data['int'][timeframe_key]
+with col1:
+    total_balance = st.number_input("Current Super Balance ($)", min_value=0.0, value=150000.0, step=1000.0)
     
-    # Weighted Return %
-    weighted_r = (aus_r * (aus_pct/100)) + (int_r * (int_pct/100))
-    # Dollar Growth
-    dollar_growth = total_balance * (weighted_r / 100)
-    
-    return weighted_r, dollar_growth
+with col2:
+    # We ask for the "Return to Date" (FYTD) specifically as you requested
+    aus_return_input = st.number_input("AU Shares Return to Date (%)", value=7.75, step=0.01)
+    int_return_input = st.number_input("INT Shares Return to Date (%)", value=1.35, step=0.01)
 
-# --- 4. DISPLAY RESULTS ---
+# --- 2. THE LOGIC (The "Engine") ---
+# Your fixed split
+aus_weight = 0.25
+int_weight = 0.75
 
-# Top Row: The Big Three
-col1, col2, col3 = st.columns(3)
+# Weighted Calculation
+combined_return_pct = (aus_return_input * aus_weight) + (int_return_input * int_weight)
+total_dollar_gain = total_balance * (combined_return_pct / 100)
 
-# FYTD
-r_fytd, d_fytd = calc_returns('fytd')
-col1.metric("FYTD", f"${d_fytd:,.0f}", f"{r_fytd:.2f}%")
+# Portfolio values
+aus_value = total_balance * aus_weight
+int_value = total_balance * int_weight
 
-# Last FY
-r_lfy, d_lfy = calc_returns('last_fy')
-col2.metric("Last FY", f"${d_lfy:,.0f}", f"{r_lfy:.2f}%")
-
-# Rolling 1 Year
-r_1y, d_1y = calc_returns('one_year')
-col3.metric("1 Year", f"${d_1y:,.0f}", f"{r_1y:.2f}%")
-
+# --- 3. THE DASHBOARD (The "Output") ---
 st.divider()
 
-# Breakdown Detail
-st.subheader("Portfolio Value Breakdown")
-aus_val = total_balance * (aus_pct / 100)
-int_val = total_balance * (int_pct / 100)
+# Big "Hero" Metrics
+m1, m2 = st.columns(2)
+m1.metric("Total Combined Return", f"{combined_return_pct:.2f}%")
+m2.metric("Estimated Profit/Loss", f"${total_dollar_gain:,.2f}")
 
-st.write(f"**Australian Component ({aus_pct}%):** ${aus_val:,.2f}")
-st.write(f"**International Component ({int_pct}%):** ${int_val:,.2f}")
+# Progress Bar toward a milestone (Engineers love a progress bar)
+target = 500000.0
+progress = min(total_balance / target, 1.0)
+st.write(f"### Progress to ${target:,.0f} Milestone")
+st.progress(progress)
+st.caption(f"Currently at {progress*100:.1f}% of your goal.")
 
-st.info("To update these rates in the future, just edit the 'data' dictionary at the top of your app.py file in GitHub.")
+# Breakdown Table
+st.subheader("Current Asset Allocation")
+st.table({
+    "Asset Class": ["Australian Shares (25%)", "International Shares (75%)", "TOTAL"],
+    "Value ($)": [f"${aus_value:,.2f}", f"${int_val:,.2f}", f"${total_balance:,.2f}"],
+    "Return Contribution": [f"{(aus_return_input * aus_weight):.2f}%", f"{(int_return_input * int_weight):.2f}%", f"{combined_return_pct:.2f}%"]
+})
+
+st.info("💡 Tip: Just check your AustralianSuper app once a month, punch the new % numbers in here, and see your instant weighted growth.")
